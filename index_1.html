@@ -1,0 +1,667 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>洋楽部屋</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Maru+Gothic:wght@700&display=swap">
+<style>
+/* レイアウト: 上部に固定ヘッダー(左=洋楽部屋 / 右=検索バー)。トップは人気曲 → アーティストから探す → 新しい和訳。曲を開くと動画枠つきの和訳ページに切り替わる。 */
+:root {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --soft: #f4f5f7;
+  --ink: #1d2430;
+  --muted: #667085;
+  --line: #dde1e8;
+  --accent: #2f5f8f;
+  --accent-soft: #e6eef6;
+
+  --font-logo: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif;
+  --font-body: "Zen Kaku Gothic New", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+  --font-mono: "DM Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12161d;
+    --surface: #1a2029;
+    --soft: #222a35;
+    --ink: #e8ecf2;
+    --muted: #94a0b2;
+    --line: #2a3340;
+    --accent: #8db8e6;
+    --accent-soft: #223244;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12161d;
+  --surface: #1a2029;
+  --soft: #222a35;
+  --ink: #e8ecf2;
+  --muted: #94a0b2;
+  --line: #2a3340;
+  --accent: #8db8e6;
+  --accent-soft: #223244;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.8;
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto;
+  height: env(safe-area-inset-top, 0px);
+  background: var(--surface);
+  z-index: 10;
+}
+
+.bar {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 9;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.bar-in {
+  max-width: 880px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-block: 12px;
+}
+.logo {
+  font-family: var(--font-logo);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.search {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 280px;
+}
+.search input {
+  width: 100%;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--ink);
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 16px;
+}
+.search input::placeholder { color: var(--muted); }
+.search input:focus-visible,
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+main {
+  max-width: 880px;
+  margin: 0 auto;
+  padding-block: 32px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.list-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.list-head h1 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.count { font-family: var(--font-mono); font-size: 13px; }
+
+.songs { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.songs li { border-bottom: 1px solid var(--line); }
+.song {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 16px;
+  align-items: baseline;
+  padding: 16px 4px;
+  color: inherit;
+  text-decoration: none;
+}
+.song:hover .song-title { color: var(--accent); }
+.song-title { font-weight: 700; font-size: 17px; line-height: 1.5; overflow-wrap: anywhere; }
+.song-sub { color: var(--muted); font-size: 14px; grid-column: 1; overflow-wrap: anywhere; }
+.song-date {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 4px;
+  vertical-align: 2px;
+}
+.empty { padding: 48px 0; text-align: center; color: var(--muted); }
+
+.section { margin-bottom: 40px; }
+.section > h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+  line-height: 1.4;
+}
+.section-note { margin: -4px 0 14px; font-size: 13px; color: var(--muted); }
+
+.popular {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+.pop-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 14px;
+  align-items: center;
+  height: 100%;
+  padding: 16px;
+  color: inherit;
+  text-decoration: none;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.pop-card:hover { border-color: var(--accent); }
+.pop-rank {
+  grid-row: 1 / span 2;
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.pop-title { font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
+.pop-artist { font-size: 13px; color: var(--muted); line-height: 1.4; overflow-wrap: anywhere; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 14px;
+  cursor: pointer;
+}
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+
+.video { margin: 24px 0 0; }
+.video-frame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+  padding: 16px;
+  text-decoration: none;
+}
+a.video-frame { color: var(--ink); }
+a.video-frame:hover { border-color: var(--accent); }
+.play {
+  width: 56px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--accent);
+  position: relative;
+}
+.play::after {
+  content: "";
+  position: absolute;
+  left: 22px;
+  top: 12px;
+  border-left: 14px solid var(--bg);
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+}
+.play.off { background: var(--line); }
+
+.back {
+  display: inline-block;
+  margin-bottom: 24px;
+  font-size: 14px;
+  color: var(--muted);
+  text-decoration: none;
+}
+.back:hover { color: var(--accent); }
+.detail h1 {
+  margin: 0 0 4px;
+  font-size: clamp(24px, 5vw, 32px);
+  line-height: 1.35;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+.artist-btn {
+  font: inherit;
+  font-size: 17px;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.artist-btn:hover { text-decoration: underline; }
+
+.meta {
+  margin: 24px 0 32px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px 20px;
+}
+.meta div {
+  display: grid;
+  grid-template-columns: 7.5em minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.meta div:last-child { border-bottom: 0; }
+.meta dt { color: var(--muted); font-size: 14px; }
+.meta dd { margin: 0; overflow-wrap: anywhere; }
+.meta .date { font-family: var(--font-mono); font-size: 15px; }
+
+.detail h2 {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+.about { margin: 0 0 32px; max-width: 34em; }
+.translation .pending { color: var(--muted); }
+.translation p {
+  margin: 0 0 1.6em;
+  max-width: 34em;
+}
+
+@media (max-width: 520px) {
+  .logo { font-size: 20px; }
+  .meta div { grid-template-columns: 1fr; gap: 0; }
+  .song { grid-template-columns: minmax(0, 1fr); }
+  .song-date { grid-column: 1; grid-row: auto; align-self: start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+body { margin: 0; }
+</style>
+</head>
+<body>
+
+
+<header class="bar">
+  <div class="bar-in">
+    <a class="logo" href="#" id="home-link">洋楽部屋</a>
+    <form class="search" id="search-form" role="search">
+      <input id="q" type="search" placeholder="曲名・アーティスト名で検索" aria-label="曲を検索" autocomplete="off">
+    </form>
+  </div>
+</header>
+
+<main id="view"></main>
+
+<script>
+/* ------------------------------------------------------------
+   和訳ページのデータ。新しい曲はここに1件ずつ追加します。
+   id は半角英数字とハイフンだけにしてください。
+   about: 曲の紹介(一文)。translation: 和訳の段落を ["…", "…"] の形で入れます(空なら「準備中」と出ます)。
+   popular: 数字を入れるとトップの「人気曲」に載ります(1が先頭)。載せない曲は書きません。
+   youtube: 和訳動画のURLを入れると、曲ページに動画への入口が出ます。
+------------------------------------------------------------ */
+var SONGS = [
+  {
+    id: "love-yourself",
+    popular: 1,
+    youtube: "",
+    title: "Love Yourself",
+    artist: "Justin Bieber",
+    tags: ["Justin Bieber"],
+    writers: "Justin Bieber、Benjamin Levin (Benny Blanco)、Ed Sheeran",
+    release: "Love Yourself (シングル)",
+    album: "Purpose",
+    created: "2026-10-16",
+    about: "2015年11月9日にシングルとして発表された、アルバム『Purpose』の収録曲。",
+    translation: []
+  },
+  {
+    id: "what-do-you-mean",
+    popular: 2,
+    youtube: "",
+    title: "What Do You Mean?",
+    artist: "Justin Bieber",
+    tags: ["Justin Bieber"],
+    writers: "Justin Bieber、Jason \"Poo Bear\" Boyd、Mason Levy",
+    release: "What Do You Mean? (シングル)",
+    album: "Purpose",
+    created: "2026-10-16",
+    about: "2015年8月28日にシングルとして発表された、アルバム『Purpose』の収録曲。",
+    translation: []
+  },
+  {
+    id: "stay",
+    popular: 3,
+    youtube: "",
+    title: "STAY",
+    artist: "The Kid LAROI & Justin Bieber",
+    tags: ["The Kid LAROI", "Justin Bieber"],
+    writers: "Charlton Howard (The Kid LAROI)、Justin Bieber、Magnus Høiberg (Cashmere Cat)、Charlie Puth、Omer Fedi、Blake Slatkin、Michael Mule、Isaac De Boni、Subhaan Rahmaan",
+    release: "STAY (シングル)",
+    album: "F*CK LOVE 3: OVER YOU (ミックステープ)",
+    created: "2026-10-16",
+    about: "2021年7月9日にシングルとして発表された、The Kid LAROIとJustin Bieberの共演曲。",
+    translation: []
+  },
+  {
+    id: "the-nights",
+    popular: 4,
+    youtube: "",
+    title: "The Nights",
+    artist: "Avicii",
+    tags: ["Avicii"],
+    writers: "Tim Bergling (Avicii)、Nicholas Furlong、Gabriel Benjamin、Jordan Suecof、John Feldmann、Ash Pournouri",
+    release: "The Days / Nights (EP)",
+    album: "Stories (ボーナストラックとして収録)",
+    created: "2026-10-16",
+    about: "2014年10月3日に『The Days / Nights』EPの1曲として発表された、Aviciiの楽曲。",
+    translation: []
+  },
+  {
+    id: "sos",
+    youtube: "",
+    title: "SOS",
+    artist: "Avicii feat. Aloe Blacc",
+    tags: ["Avicii", "Aloe Blacc"],
+    writers: "Tim Bergling (Avicii)、Albin Nedler、Kristoffer Fogelmark、Kandi Burruss、Tameka Cottle、Kevin Briggs",
+    release: "SOS (シングル)",
+    album: "TIM",
+    created: "2026-10-16",
+    about: "2019年4月10日に発表された、Aviciiの没後初のシングル。アルバム『TIM』の収録曲。",
+    translation: []
+  },
+  {
+    id: "heaven",
+    youtube: "",
+    title: "Heaven",
+    artist: "Avicii feat. Chris Martin",
+    tags: ["Avicii", "Chris Martin"],
+    writers: "Tim Bergling (Avicii)、Chris Martin",
+    release: "Heaven (シングル)",
+    album: "TIM",
+    created: "2026-10-16",
+    about: "2019年6月6日、アルバム『TIM』と同じ日に発表された楽曲。",
+    translation: []
+  }
+];
+
+var view = document.getElementById("view");
+var qInput = document.getElementById("q");
+var query = "";
+
+function el(tag, cls, text) {
+  var n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
+  return n;
+}
+function fmtDate(s) { return s.replace(/-/g, "."); }
+function norm(s) { return String(s).toLowerCase(); }
+
+function matches(song, q) {
+  if (!q) return true;
+  var hay = norm([song.title, song.artist, song.writers, song.release, song.album].join(" "));
+  return q.split(/\s+/).filter(Boolean).every(function (w) { return hay.indexOf(norm(w)) !== -1; });
+}
+
+function songLink(s) {
+  var li = el("li");
+  var a = el("a", "song");
+  a.href = "#" + s.id;
+  var t = el("span", "song-title", s.title);
+  if (s.sample) t.appendChild(el("span", "tag", "サンプル"));
+  a.appendChild(t);
+  a.appendChild(el("span", "song-date", fmtDate(s.created)));
+  a.appendChild(el("span", "song-sub", s.artist + " / " + s.album));
+  li.appendChild(a);
+  return li;
+}
+
+function renderList() {
+  view.textContent = "";
+  var q = query.trim();
+  var byDate = function (a, b) { return a.created < b.created ? 1 : a.created > b.created ? -1 : 0; };
+
+  if (q) {
+    var found = SONGS.filter(function (s) { return matches(s, q); }).sort(byDate);
+    var head = el("div", "list-head");
+    head.appendChild(el("h1", null, "検索結果"));
+    head.appendChild(el("span", "count", found.length + "曲"));
+    view.appendChild(head);
+    if (!found.length) {
+      view.appendChild(el("p", "empty", "該当する曲がありません。別の言葉で探してみてください。"));
+      return;
+    }
+    var ul0 = el("ul", "songs");
+    found.forEach(function (s) { ul0.appendChild(songLink(s)); });
+    view.appendChild(ul0);
+    return;
+  }
+
+  /* 人気曲 */
+  var pops = SONGS.filter(function (s) { return s.popular; })
+    .sort(function (a, b) { return a.popular - b.popular; });
+  if (pops.length) {
+    var sec = el("section", "section");
+    sec.appendChild(el("h2", null, "人気曲"));
+    var grid = el("ol", "popular");
+    pops.forEach(function (s, i) {
+      var li = el("li");
+      var a = el("a", "pop-card");
+      a.href = "#" + s.id;
+      a.appendChild(el("span", "pop-rank", String(i + 1)));
+      a.appendChild(el("span", "pop-title", s.title));
+      a.appendChild(el("span", "pop-artist", s.artist));
+      li.appendChild(a);
+      grid.appendChild(li);
+    });
+    sec.appendChild(grid);
+    view.appendChild(sec);
+  }
+
+  /* アーティストから探す */
+  var counts = {};
+  var names = [];
+  SONGS.forEach(function (s) {
+    (s.tags || [s.artist]).forEach(function (t) {
+      if (!counts[t]) { counts[t] = 0; names.push(t); }
+      counts[t] += 1;
+    });
+  });
+  if (names.length > 1) {
+    var sec2 = el("section", "section");
+    sec2.appendChild(el("h2", null, "アーティストから探す"));
+    var chips = el("div", "chips");
+    names.forEach(function (name) {
+      var b = el("button", "chip", name + " (" + counts[name] + ")");
+      b.type = "button";
+      b.addEventListener("click", function () {
+        qInput.value = name;
+        query = name;
+        renderList();
+        window.scrollTo(0, 0);
+      });
+      chips.appendChild(b);
+    });
+    sec2.appendChild(chips);
+    view.appendChild(sec2);
+  }
+
+  /* 新しい和訳 */
+  var sec3 = el("section", "section");
+  sec3.appendChild(el("h2", null, "新しい和訳"));
+  var ul = el("ul", "songs");
+  SONGS.slice().sort(byDate).forEach(function (s) { ul.appendChild(songLink(s)); });
+  sec3.appendChild(ul);
+  view.appendChild(sec3);
+}
+
+function renderDetail(song) {
+  view.textContent = "";
+  var box = el("article", "detail");
+
+  var back = el("a", "back", "← 一覧へ戻る");
+  back.href = "#";
+  box.appendChild(back);
+
+  var h1 = el("h1", null, song.title);
+  if (song.sample) h1.appendChild(el("span", "tag", "サンプル"));
+  box.appendChild(h1);
+
+  var artistBtn = el("button", "artist-btn", song.artist);
+  artistBtn.type = "button";
+  artistBtn.title = "このアーティストの曲を検索";
+  artistBtn.addEventListener("click", function () {
+    qInput.value = song.artist;
+    query = song.artist;
+    location.hash = "";
+    renderList();
+  });
+  box.appendChild(artistBtn);
+
+  var video = el("div", "video");
+  if (song.youtube) {
+    var va = el("a", "video-frame");
+    va.href = song.youtube;
+    va.target = "_blank";
+    va.rel = "noopener";
+    va.appendChild(el("span", "play"));
+    va.appendChild(el("span", null, "YouTubeで和訳動画を見る"));
+    video.appendChild(va);
+  } else {
+    var vb = el("div", "video-frame");
+    vb.appendChild(el("span", "play off"));
+    vb.appendChild(el("span", null, "和訳動画は準備中です"));
+    video.appendChild(vb);
+  }
+  box.appendChild(video);
+
+  var dl = el("dl", "meta");
+  [
+    ["アーティスト名", song.artist],
+    ["作詞作曲", song.writers],
+    ["リリース名", song.release],
+    ["アルバム名", song.album],
+    ["ページ作成日", fmtDate(song.created), "date"]
+  ].forEach(function (r) {
+    var row = el("div");
+    row.appendChild(el("dt", null, r[0]));
+    row.appendChild(el("dd", r[2] || null, r[1]));
+    dl.appendChild(row);
+  });
+  box.appendChild(dl);
+
+  if (song.about) {
+    box.appendChild(el("h2", null, "この曲について"));
+    box.appendChild(el("p", "about", song.about));
+  }
+
+  box.appendChild(el("h2", null, "和訳"));
+  var tr = el("div", "translation");
+  if (song.translation && song.translation.length) {
+    song.translation.forEach(function (p) { tr.appendChild(el("p", null, p)); });
+  } else {
+    tr.appendChild(el("p", "pending", "和訳は準備中です。"));
+  }
+  box.appendChild(tr);
+
+  view.appendChild(box);
+  document.title = song.title + " | 洋楽部屋";
+}
+
+function route() {
+  var id = location.hash.replace(/^#/, "");
+  var song = SONGS.filter(function (s) { return s.id === id; })[0];
+  if (song) {
+    renderDetail(song);
+  } else {
+    document.title = "洋楽部屋";
+    renderList();
+  }
+  window.scrollTo(0, 0);
+}
+
+qInput.addEventListener("input", function () {
+  query = qInput.value;
+  if (location.hash && location.hash !== "#") {
+    location.hash = "";
+  }
+  renderList();
+});
+document.getElementById("search-form").addEventListener("submit", function (e) { e.preventDefault(); });
+document.getElementById("home-link").addEventListener("click", function () {
+  qInput.value = "";
+  query = "";
+  renderList();
+});
+window.addEventListener("hashchange", route);
+route();
+</script>
+
+</body>
+</html>
